@@ -3,6 +3,7 @@
 
 """Static file generator for Django."""
 import stat
+import os
 
 from django.utils.functional import Promise
 
@@ -23,8 +24,8 @@ class StaticGenerator(object):
         from staticgenerator import quick_publish
         quick_publish('/', Post.objects.live(), FlatPage)
 
-    The class accepts a list of 'resources' which can be any of the 
-    following: URL path (string), Model (class or instance), Manager, or 
+    The class accepts a list of 'resources' which can be any of the
+    following: URL path (string), Model (class or instance), Manager, or
     QuerySet.
 
     As of v1.1, StaticGenerator includes file and path deletion::
@@ -59,7 +60,7 @@ class StaticGenerator(object):
         settings = kw.get('settings', None)
         site = kw.get('site', None)
         fs = kw.get('fs', None)
-        
+
         self.http_request = http_request
         if not http_request:
             from django.http import HttpRequest
@@ -176,12 +177,13 @@ class StaticGenerator(object):
         if path.endswith('/'):
             path = '%sindex.html' % path
 
-        filename = self.fs.join(self.web_root, path.lstrip('/')).encode('utf-8')
+        path = os.path.normpath(path.lstrip('/'))
+        filename = self.fs.join(self.web_root, path).encode('utf-8')
         return filename, self.fs.dirname(filename)
 
     def publish_from_path(self, path, content=None):
         """
-        Gets filename and content for a path, attempts to create directory if 
+        Gets filename and content for a path, attempts to create directory if
         necessary, writes to file.
         """
         filename, directory = self.get_filename_from_path(path)
@@ -199,6 +201,8 @@ class StaticGenerator(object):
             self.fs.write(f, content)
             self.fs.close(f)
             self.fs.chmod(tmpname, stat.S_IREAD | stat.S_IWRITE | stat.S_IWUSR | stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
+            if os.path.exists(filename):
+                os.remove(filename)
             self.fs.rename(tmpname, filename)
         except:
             raise StaticGeneratorException('Could not create the file: %s' % filename)
@@ -215,7 +219,7 @@ class StaticGenerator(object):
         try:
             self.fs.rmdir(directory)
         except OSError:
-            # Will fail if a directory is not empty, in which case we don't 
+            # Will fail if a directory is not empty, in which case we don't
             # want to delete it anyway
             pass
 
